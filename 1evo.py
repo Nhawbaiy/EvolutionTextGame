@@ -1,5 +1,6 @@
 import sqlite3
 import time
+import random
 
 conn = sqlite3.connect("evo.db")
 cursor = conn.cursor()
@@ -13,11 +14,10 @@ CREATE TABLE IF NOT EXISTS evo (
     defense INTEGER DEFAULT 0,
     speed INTEGER DEFAULT 0,
     mass INTEGER DEFAULT 0,
-    bite INTEGER DEFAULT 0,
-    punch INTEGER DEFAULT 0,
     diet TEXT,
     satiety INTEGER DEFAULT 50,
-    energy INTEGER DEFAULT 50
+    energy INTEGER DEFAULT 50,
+    health INTEGER DEFAULT 0
 )
 """)
 conn.commit()
@@ -32,9 +32,9 @@ jaw_catalog = [
 ]
 
 body_catalog = [
-    {"name_body": "Маленькое Тело", "mass_body": 30, "durability_body": 1, "speed_body": 1, "price_body": 10},
-    {"name_body": "Среднее Тело", "mass_body": 80, "durability_body": 3, "speed_body": 0, "price_body": 15},
-    {"name_body": "Массивное Тело", "mass_body": 230, "durability_body": 6, "speed_body": -1, "price_body": 20}
+    {"name_body": "Маленькое Тело", "mass_body": 30, "durability_body": 1, "speed_body": 1, "health_body" : 25, "price_body": 10,},
+    {"name_body": "Среднее Тело", "mass_body": 80, "durability_body": 3, "speed_body": 0, "health_body" : 50, "price_body": 15},
+    {"name_body": "Массивное Тело", "mass_body": 230, "durability_body": 6, "speed_body": -1, "health_body" : 100, "price_body": 20}
 ]
 
 limbs_catalog = [
@@ -50,19 +50,147 @@ def main_menu():
 
 def play_game(name_character):
     while True:
-        cursor.execute("SELECT name, age, score, atack, defense, speed, mass, diet, satiety, energy FROM evo WHERE name = ?", (name_character,))
+        cursor.execute("SELECT name, age, score, atack, defense, speed, mass, diet, satiety, energy, health FROM evo WHERE name = ?", (name_character,))
         stats = cursor.fetchone()
-        name, age, score, atack, defense, speed, mass, diet, satiety, energy = stats
+        name, age, score, atack, defense, speed, mass, diet, satiety, energy, health = stats
+
+        if health <= 0:
+            print(f"Существо {name_character} умерло...")
+            cursor.execute("DELETE FROM evo WHERE name = ?", (name_character,))
+            conn.commit()
+            time.sleep(3)
+            break
         
         print(f"\n--- {name.upper()} ---")
         print(f"Состояние: Сытость {satiety} | Энергия {energy}")
         print("1. Статистика | 2. Действие | 0. Выход в меню")
         
-        interact = input("Действие: ")
-        if interact == "1":
-            print(f"\n{'Название':<10} | {'ДНК':<5} | {'Атака':<5} | {'Защита':<5} | {'Скорость':<5}")
-            print(f"{name:<10} | {score:<5} | {atack:<5} | {defense:<6} | {speed:<5}")
-        elif interact == "0":
+        main_interact = input("Действие: ")
+        if main_interact == "1":
+            print(f"\n{'Название':<10} | {'ДНК':<5} | {'Здоровье':<5} |{'Атака':<5} | {'Защита':<5} | {'Скорость':<5}")
+            print(f"{name:<10} | {score:<5} | {health:<5} | {atack:<5} | {defense:<6} | {speed:<5}")
+
+        elif main_interact == "2":
+            print(f"\n{'-'*5}Действия{'-'*5}")
+            if diet == "Хищное":
+                print("\n1. Отправиться на охоту")
+            elif diet == "Травоядное":
+                print("\n1. Искать растение")
+            interact = input("Действие: ")
+            if interact == "1" and diet == "Хищное":
+                if energy >= 20:
+                    print("\nВы выдвинулись на охоту")
+                    time.sleep(2)
+                    print("Процесс поиска добычи...")
+                    time.sleep(3)
+                    diet_prey = random.randint(1, 100)
+                    if diet_prey <= 20:
+                        prey_power = random.randint(1,12)
+                        if prey_power <= 3:
+                            print("Найден - слабый хищник")
+                        elif prey_power <= 7 and prey_power > 3:
+                            print("Найден - опасный хищник")
+                        elif prey_power <= 10 and prey_power > 7:
+                            print("Найден - очень опасный хищник")
+                        elif prey_power > 10:
+                            print("Найден - верховный хищник")
+                        time.sleep(2)
+                        print("Хищник нападает на вас")
+                        time.sleep(2)
+                        user_luck = random.randint(1,5)
+                        user_total_power = user_luck + atack
+                        if prey_power <= user_total_power:
+                            print("Вы выиграли схватку")
+                            cursor.execute("UPDATE evo SET score = score + ? , energy = energy - ?, satiety = satiety + ? WHERE name = ?", (prey_power*3, prey_power, prey_power, name_character))
+                        if prey_power > user_total_power:
+                            damage = random.randint(1, prey_power)
+                            print("Вы проиграли схватку, вам нанесли {damage} урона")
+                            cursor.execute("UPDATE evo SET energy = energy - ?, satiety = satiety - ?, health = health - ? WHERE name = ?", (prey_power, prey_power, damage, name_character))
+                        conn.commit()
+                        continue
+                    elif diet_prey > 20:
+                        print("Добыча найдена")
+                        time.sleep(2)
+                        print("Вы бежите за добычей")
+                        time.sleep(2)
+                        prey_power = random.randint(1,7)
+                        prey_speed = random.randint(1,5)
+                        user_luck = random.randint(1,5)
+                        user_total_speed = user_luck + speed
+                        if user_total_speed >= prey_speed:
+                            print("Добыча поймана")
+                            cursor.execute("UPDATE evo SET score = score + ? WHERE name = ?", (prey_speed*2, name_character))
+                            time.sleep(2)
+                            print("Вы атакуете ее")
+                        elif user_total_speed < prey_speed:
+                            print("Добыча убежала")
+                            cursor.execute("UPDATE evo SET energy = energy - ?, satiety = satiety - ? WHERE name = ?", (prey_speed*2, prey_speed, name_character))
+                            continue
+                        user_total_power = user_luck + atack
+                        if prey_power <= user_total_power:
+                            time.sleep(2)
+                            print("Охота успешна!")
+                            cursor.execute("UPDATE evo SET score = score + ? , energy = energy - ?, satiety = satiety + ? WHERE name = ?", (prey_power*2, prey_power, prey_power*2, name_character))
+                        elif prey_power > user_total_power:
+                            time.sleep(2)
+                            print("Охота не удалась")
+                            cursor.execute("UPDATE evo SET energy = energy - ?, satiety = satiety - ? WHERE name = ?", (prey_power*2, prey_power, name_character))
+                        conn.commit()
+                elif energy < 20:
+                    print("[!] Для охоты нужно минимум 20 Энергии")
+            elif interact == "1" and diet == "Травоядное":
+                if energy >= 10:    
+                    print("\nВы выдвинулись на поиск растения")
+                    time.sleep(2)
+                    find_plant = random.randint(1, 100)
+                    if find_plant <= 65:
+                        print("Найдено растение")
+                        cursor.execute("UPDATE evo SET score = score + 3, satiety = satiety + 15, energy = energy - 5 WHERE name = ?", (name_character,))
+                        conn.commit()
+                        time.sleep(2)
+                    elif find_plant <= 75:
+                        print("Вы съели ядовитое растение")
+                        cursor.execute("UPDATE evo SET satiety = satiety - 5, energy = energy - 10, health = health - 5 WHERE name = ?", (name_character,))
+                        conn.commit()
+                        time.sleep(2)
+                    elif find_plant <= 85:
+                        predator_speed = random.randint(1, 5)
+                        print("Обнаружен хищник!")
+                        time.sleep(2)
+                        user_luck = random.randint(1, 5)
+                        user_total_speed = user_luck + speed
+                        if predator_speed <= user_total_speed:
+                            print("Вам удалось сбежать")
+                            cursor.execute("UPDATE evo SET satiety = satiety - 10, energy = energy - 15 WHERE name = ?", (name_character,))
+                            conn.commit()
+                            time.sleep(2)
+                        elif predator_speed > user_total_speed:
+                            print("Хищник догнал вас!")
+                            time.sleep(2)
+                            print("Вы обороняетесь")
+                            time.sleep(2)
+                            predator_power = random.randint(1,10)
+                            user_luck = random.randint(1,5)
+                            user_total_power = user_luck + defense
+                            if predator_power <= user_total_power:
+                                print("Вам удалось отбиться")
+                                cursor.execute("UPDATE evo SET satiety = satiety - 15, energy = energy - 20, health = health - ? WHERE name = ?", (predator_power, name_character))
+                                conn.commit()
+                            elif predator_power > user_total_power:
+                                probability_death = random.randint(1,100)
+                                if probability_death <= 75:
+                                    print("Вы сбежали с ранами")
+                                    cursor.execute("UPDATE evo SET satiety = satiety - 20, energy = energy - 30, health = health - ? WHERE name = ?", (predator_power*2, name_character))
+                                    conn.commit()
+                                elif probability_death <= 100:
+                                    print("Вы не смогли спастись")
+                                    cursor.execute("UPDATE evo SET health = health - health WHERE name = ?", (name_character,))
+                                    conn.commit()
+                    elif find_plant <= 100:
+                        print("Растения не найдены")
+                        cursor.execute("UPDATE evo SET satiety = satiety - 5, energy = energy - 5 WHERE name = ?", (name_character,))
+                        conn.commit()
+        elif main_interact == "0":
             break
 
 def new_game():
@@ -82,7 +210,7 @@ def new_game():
 
     for catalog, table, fields in [
         (jaw_catalog, "atack = atack + ?, diet = ?", ["bite_force_jaw", "food_type_jaw"]),
-        (body_catalog, "defense = defense + ?, speed = speed + ?, mass = mass + ?", ["durability_body", "speed_body", "mass_body"]),
+        (body_catalog, "defense = defense + ?, speed = speed + ?, mass = mass + ?, health = health + ?", ["durability_body", "speed_body", "mass_body", "health_body"]),
         (limbs_catalog, "speed = speed + ?", ["speed_limbs"])
     ]:
         while True:
