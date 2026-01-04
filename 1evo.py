@@ -120,7 +120,6 @@ def play_game(name_character):
         cursor.execute("SELECT name, age, score, atack, defense, speed, mass, diet, satiety, energy, health, max_health, max_energy, max_satiety, vision, attractiveness, jaw, body, limbs, paws, eyes FROM evo WHERE name = ?", (name_character,))
         stats = cursor.fetchone()
         name, age, score, atack, defense, speed, mass, diet, satiety, energy, health, max_health, max_energy, max_satiety, vision, attractiveness, jaw, body, limbs, paws, eyes = stats
-        print(jaw, paws, eyes, vision)
         if health <= 0:
             print(f"Существо {name_character} умерло...")
             time.sleep(3)
